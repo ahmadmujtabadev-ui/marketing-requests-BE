@@ -1,4 +1,6 @@
-import { PrismaClient } from "../generated/client/index.js";
+// import { PrismaClient } from "../../prisma/generated/client/index.js";
+import { PrismaClient } from "@prisma/client";
+
 import { signTokens } from "../middleware/auth.js";
 import bcrypt from 'bcryptjs'
 
@@ -27,7 +29,7 @@ function bad(res, msg = 'Bad request', code = 400) {
 }
 
 export async function register(req, res) {
-  const { name, email, password, role = 'agent' } = req.body || {};
+  const { name, email, password, role  } = req.body || {};
   if (!email || !password) return bad(res, 'Email and password are required');
   console.log('DB:', (process.env.DATABASE_URL || '').replace(/:\/\/.*@/, '://***@'));
 
@@ -59,6 +61,7 @@ export async function login(req, res) {
       email: true,
       isActive: true,
       passwordHash: true,
+      role:true,
     },
   });
 
@@ -90,7 +93,8 @@ export async function refresh(req, res) {
 
 // GET /api/auth/me   (requires auth middleware that sets req.user)
 export async function me(req, res) {
-  const userId = req.user?.sub;
+  const userId = req.user.id;
+  console.log("userId", userId)
   if (!userId) return bad(res, 'Unauthorized', 401);
 
   const user = await prisma.user.findUnique({ where: { id: userId } });

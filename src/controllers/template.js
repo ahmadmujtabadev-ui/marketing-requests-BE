@@ -1,5 +1,7 @@
 
-import { PrismaClient } from "../generated/client/index.js";
+// import { PrismaClient } from "../../prisma/generated/client/index.js";
+
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient()
 
@@ -19,6 +21,9 @@ function bad(res, msg = 'Bad request', code = 400) {
 export async function getTemplates(req, res) {
   try {
     const { category, type } = req.query;
+    console.log("category", category)
+        console.log("type", type)
+
     
     const where = {};
     if (category) where.category = category;
@@ -90,6 +95,7 @@ export async function updateTemplate(req, res) {
   try {
     const { id } = req.params;
     const { title, category, type, previewUrl, canvaUrl } = req.body;
+    console.log("preview i", previewUrl)
 
     const exists = await prisma.template.findUnique({ where: { id } });
     if (!exists) return bad(res, 'Template not found', 404);

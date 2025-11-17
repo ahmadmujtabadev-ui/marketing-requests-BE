@@ -1,7 +1,8 @@
-import { PrismaClient } from "../generated/client/index.js";
+// import { PrismaClient } from "../../prisma/generated/client/index.js";
+import { PrismaClient } from "@prisma/client";
+
 
 const prisma = new PrismaClient()
-
 
 function ok(res, data = {}, message = 'OK') {
   return res.status(200).json({ message, ...data });
@@ -87,49 +88,80 @@ export async function getRequest(req, res) {
   }
 }
 
-// POST /api/requests - Submit new request (Agent only)
+
 export async function createRequest(req, res) {
   try {
+    // Ensure user is authenticated and has id
     const agentId = req.user?.id;
-    console.log("AentId",agentId)
-    const { templateId, projectTitle, notes, fileUrls } = req.body;
+    if (!agentId) {
+      return bad(res, 'Unauthorized: missing agent id from token', 401);
+    }
 
-    // Validation
+    const { 
+      templateId, 
+      projectTitle, 
+      deadline,
+      platforms,
+      dimensions,
+      notes, 
+      fileUrls 
+    } = req.body;
+
+    // Basic validation
     if (!templateId || !projectTitle) {
       return bad(res, 'Template ID and project title are required');
     }
 
+    if (!deadline) {
+      return bad(res, 'Deadline is required');
+    }
+
+    if (!platforms || !Array.isArray(platforms) || platforms.length === 0) {
+      return bad(res, 'At least one platform is required');
+    }
+
     // Verify template exists
     const template = await prisma.template.findUnique({ where: { id: templateId } });
-    if (!template) return bad(res, 'Template not found', 404);
+    if (!template) {
+      return bad(res, 'Template not found', 404);
+    }
 
-    // Create request
+    // Parse deadline to Date
+    const deadlineDate = new Date(deadline);
+    if (isNaN(deadlineDate.getTime())) {
+      return bad(res, 'Invalid deadline format');
+    }
+
+    // Create request with new fields
     const request = await prisma.request.create({
       data: {
         agentId,
         templateId,
         projectTitle,
+        // deadline: deadlineDate,
+        platforms,
+        dimensions: dimensions || null,
         notes: notes || null,
-        status: 'new'
+        status: 'new',
       },
       include: {
         agent: {
-          select: { id: true, name: true, email: true }
+          select: { id: true, name: true, email: true },
         },
         template: {
-          select: { id: true, title: true, category: true, type: true }
-        }
-      }
+          select: { id: true, title: true, category: true, type: true },
+        },
+      },
     });
 
     // Create file records if provided
     if (fileUrls && Array.isArray(fileUrls) && fileUrls.length > 0) {
       await prisma.requestFile.createMany({
-        data: fileUrls.map(url => ({
+        data: fileUrls.map((url) => ({
           requestId: request.id,
           fileUrl: url,
-          fileType: 'agent_upload'
-        }))
+          fileType: 'agent_upload',
+        })),
       });
     }
 
@@ -138,13 +170,13 @@ export async function createRequest(req, res) {
       where: { id: request.id },
       include: {
         agent: {
-          select: { id: true, name: true, email: true }
+          select: { id: true, name: true, email: true },
         },
         template: {
-          select: { id: true, title: true, category: true, type: true }
+          select: { id: true, title: true, category: true, type: true },
         },
-        files: true
-      }
+        files: true,
+      },
     });
 
     return created(res, { request: completeRequest }, 'Request submitted');
@@ -153,6 +185,7 @@ export async function createRequest(req, res) {
     return bad(res, 'Failed to create request', 500);
   }
 }
+
 
 // PUT /api/requests/:id/status - Update request status (VA/Admin)
 export async function updateRequestStatus(req, res) {
@@ -233,11 +266,17 @@ export async function deleteRequestFile(req, res) {
   }
 }
 
-// PUT /api/requests/:id/notes - Update request notes (Agent can update their own)
-export async function updateRequestNotes(req, res) {
+// PUT /api/requests/:id - Update request (Agent can update their own)
+export async function updateRequest(req, res) {
   try {
     const { id } = req.params;
-    const { notes } = req.body;
+    const { 
+      projectTitle,
+      deadline,
+      platforms,
+      dimensions,
+      notes 
+    } = req.body;
     const userId = req.user?.sub;
     const userRole = req.user?.role;
 
@@ -249,9 +288,31 @@ export async function updateRequestNotes(req, res) {
       return bad(res, 'Unauthorized', 403);
     }
 
+    // Build update data object
+    const updateData = {};
+    
+    if (projectTitle !== undefined) updateData.projectTitle = projectTitle;
+    if (notes !== undefined) updateData.notes = notes;
+    if (dimensions !== undefined) updateData.dimensions = dimensions;
+    
+    if (deadline !== undefined) {
+      const deadlineDate = new Date(deadline);
+      if (isNaN(deadlineDate.getTime())) {
+        return bad(res, 'Invalid deadline format');
+      }
+      updateData.deadline = deadlineDate;
+    }
+    
+    if (platforms !== undefined) {
+      if (!Array.isArray(platforms) || platforms.length === 0) {
+        return bad(res, 'At least one platform is required');
+      }
+      updateData.platforms = platforms;
+    }
+
     const updated = await prisma.request.update({
       where: { id },
-      data: { notes },
+      data: updateData,
       include: {
         agent: {
           select: { id: true, name: true, email: true }
@@ -263,10 +324,10 @@ export async function updateRequestNotes(req, res) {
       }
     });
 
-    return ok(res, { request: updated }, 'Notes updated');
+    return ok(res, { request: updated }, 'Request updated');
   } catch (error) {
-    console.error('Update notes error:', error);
-    return bad(res, 'Failed to update notes', 500);
+    console.error('Update request error:', error);
+    return bad(res, 'Failed to update request', 500);
   }
 }
 

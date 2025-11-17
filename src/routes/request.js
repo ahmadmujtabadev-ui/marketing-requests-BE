@@ -6,7 +6,6 @@ import {
   updateRequestStatus,
   uploadCompletedFile,
   deleteRequestFile,
-  updateRequestNotes,
   getRequestStats
 } from '../controllers/request.js';
 import { authRequired } from '../middleware/auth.js';
@@ -20,8 +19,8 @@ router.get('/stats', authRequired, getRequestStats);
 router.get('/:id', authRequired, getRequest);
 
 // Agent-only routes - Submit requests
-router.post('/', authRequired, createRequest);
-router.put('/:id/notes', authRequired, updateRequestNotes);
+router.post('/', authRequired,createRequest);
+// router.put('/:id/notes', authRequired, updateRequestNotes);
 
 // VA/Admin routes - Manage requests
 router.put('/:id/status', requireRole, requireRole(['va', 'admin']), updateRequestStatus);

@@ -18,11 +18,11 @@ export const ENV = {
   // JWT secrets (separate for access/refresh)
   JWT_ACCESS_SECRET: required(
     process.env.JWT_ACCESS_SECRET ?? process.env.JWT_SECRET,
-    'JWT_ACCESS_SECRET'
+    'JWT_ACCESS_SECRET' || "pa123"
   ),
   JWT_REFRESH_SECRET: required(
     process.env.JWT_REFRESH_SECRET ?? process.env.REFRESH_SECRET ?? process.env.JWT_SECRET,
-    'JWT_REFRESH_SECRET'
+    'JWT_REFRESH_SECRET' || "123"
   ),
 
   // Token lifetimes

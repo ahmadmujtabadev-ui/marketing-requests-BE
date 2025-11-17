@@ -72,18 +72,21 @@ model Request {
   agentId       String
   templateId    String
   projectTitle  String
+  deadline      DateTime?
+  platforms     String[]
+  dimensions    String?
   notes         String?
   status        RequestStatus  @default(new)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
-  // Relations
   agent         User           @relation(fields: [agentId], references: [id], onDelete: Cascade)
   template      Template       @relation(fields: [templateId], references: [id], onDelete: Restrict)
   files         RequestFile[]
 
   @@map("requests")
 }
+
 
 model RequestFile {
   id          String    @id @default(uuid())
