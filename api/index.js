@@ -1,6 +1,6 @@
 import app from "../src/app.js";
-import { connectDB } from "../src/config/db.js";
-let dbConnection
+// import { connectDB } from "../src/config/db.js";
+// let dbConnection
 
 export default async function handler(req, res) {
   // Handle favicon requests
@@ -16,17 +16,17 @@ export default async function handler(req, res) {
     });
   }
 
-  try {
-    if (!dbConnection) {
-      dbConnection = connectDB();
-    }
-    await dbConnection;
-  } catch (error) {
-    console.error('Database connection failed:', error);
-    return res.status(500).json({ 
-      error: 'Database connection issues failed'
-    });
-  }
+  // try {
+  //   if (!dbConnection) {
+  //     dbConnection = connectDB();
+  //   }
+  //   await dbConnection;
+  // } catch (error) {
+  //   console.error('Database connection failed:', error);
+  //   return res.status(500).json({ 
+  //     error: 'Database connection issues failed'
+  //   });
+  // }
 
   return app(req, res);
 }
