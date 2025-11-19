@@ -88,7 +88,6 @@ export async function getRequest(req, res) {
   }
 }
 
-
 export async function createRequest(req, res) {
   try {
     // Ensure user is authenticated and has id
