@@ -8,6 +8,7 @@ const required = (v, key) => {
 export const ENV = {
   NODE_ENV: process.env.NODE_ENV ?? 'development',
   PORT: Number(process.env.PORT ?? 4000),
+  BASE_URL: "http://localhost:5000",
 
   // Do NOT hardcode secrets/keys here. Keep them in env.
   DATABASE_URL: required(

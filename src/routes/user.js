@@ -18,12 +18,3 @@ router.post('/change-password', changePassword);
 router.post('/toggle-2fa',  toggle2FA); 
 
 export default router;
-
-// register,
-//   login,
-//   refresh,
-//   me,
-//   forgotPassword,
-//   resetPassword,
-//   changePassword,
-//   toggle2FA,

@@ -7,8 +7,8 @@ import {
   deleteTemplate,
   getCategories
 } from '../controllers/template.js';
-import { requireRole } from '../middleware/roles.js';
 import { authRequired } from '../middleware/auth.js';
+import { uploadTemplatePreview } from '../config/uploadTemplatePreview.js';
 
 const router = Router();
 
@@ -18,8 +18,16 @@ router.get('/categories', authRequired, getCategories);
 router.get('/:id', authRequired, getTemplate);
 
 // Admin-only routes - Only admins can manage templates
-router.post('/', authRequired, createTemplate);
-router.put('/:id', updateTemplate);
-router.delete('/:id', requireRole(['admin']), deleteTemplate);
+router.post('/',
+  uploadTemplatePreview.single("previewUrl"),
+
+  authRequired, createTemplate);
+
+router.put(
+  "/:id",
+  uploadTemplatePreview.single("previewUrl"),
+  updateTemplate
+);
+router.delete('/:id', deleteTemplate);
 
 export default router;
