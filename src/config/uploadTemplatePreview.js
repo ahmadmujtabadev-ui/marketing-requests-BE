@@ -1,13 +1,19 @@
-// src/config/uploadTemplatePreview.js
 import multer from "multer";
 import fs from "fs";
 import path from "path";
 
-// Folder where you want template previews stored (relative to project root)
-const TEMPLATE_UPLOAD_DIR = path.join(process.cwd(), "uploads", "templates");
+// In serverless (Vercel / Lambda etc.), /tmp is the only writable dir
+const BASE_UPLOAD_DIR = "/tmp";
 
-// Ensure directory exists
-fs.mkdirSync(TEMPLATE_UPLOAD_DIR, { recursive: true });
+// Folder where you want template previews stored
+const TEMPLATE_UPLOAD_DIR = path.join(BASE_UPLOAD_DIR, "uploads", "templates");
+
+// Ensure directory exists (ignore error if cannot create in read-only env)
+try {
+  fs.mkdirSync(TEMPLATE_UPLOAD_DIR, { recursive: true });
+} catch (err) {
+  console.error("Failed to create upload dir:", err);
+}
 
 const storage = multer.diskStorage({
   destination(req, file, cb) {
