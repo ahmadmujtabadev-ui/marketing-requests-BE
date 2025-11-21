@@ -99,7 +99,7 @@ export async function me(req, res) {
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return bad(res, 'User not found', 404);
-  return ok(res, { user: toPublicUser(user) });
+  return ok(res, { user });
 }
 
 // POST /api/auth/forgot-password
@@ -199,3 +199,230 @@ export async function toggle2FA(req, res) {
 
 // ---- exports ---------------------------------------------------------------
 
+// UPDATE USER (Admin only)  - PUT /api/users/:id
+export async function updateUser(req, res) {
+  const authUserId = req.user?.id;
+  console.log("authUserId", authUserId)
+
+  if (!authUserId) return bad(res, 'Unauthorized', 401);
+
+  const {
+    name,
+    email,
+    role,
+    isActive,
+    twoFactorEnabled,
+    position,
+    phoneNumber,
+    website,
+    about,
+    profileImage,
+    socialLinks,
+  } = req.body || {};
+
+  try {
+   
+    const data = {};
+    if (typeof name !== 'undefined') data.name = name;
+    if (typeof email !== 'undefined') data.email = email;
+    if (typeof role !== 'undefined') data.role = role;
+    if (typeof isActive !== 'undefined') data.isActive = isActive;
+    if (typeof twoFactorEnabled !== 'undefined') data.twoFactorEnabled = twoFactorEnabled;
+
+    if (typeof position !== 'undefined') data.position = position;
+    if (typeof phoneNumber !== 'undefined') data.phoneNumber = phoneNumber;
+    if (typeof website !== 'undefined') data.website = website;
+    if (typeof about !== 'undefined') data.about = about;
+    if (typeof profileImage !== 'undefined') data.profileImage = profileImage;
+    if (typeof socialLinks !== 'undefined') data.socialLinks = socialLinks;
+
+    const updated = await prisma.user.update({
+      where: { id: authUserId },
+      data,
+    });
+
+    return ok(res, { user: updated }, 'User updated');
+  } catch (err) {
+    console.error('updateUser error:', err);
+
+    if (err.code === 'P2025') {
+      return bad(res, 'User not found', 404);
+    }
+
+    return bad(res, 'Failed to update user', 500);
+  }
+}
+
+export async function deleteUser(req, res) {
+  const authUserId = req.user?.id || req.user?.sub;
+  const authUserRole = req.user?.role;
+
+  if (!authUserId) return bad(res, 'Unauthorized', 401);
+  if (authUserRole !== 'admin') return bad(res, 'Forbidden', 403);
+
+  const userId = req.params.id;
+  if (!userId) return bad(res, 'User ID is required', 400);
+
+  if (authUserId === userId) {
+    return bad(res, 'You cannot delete your own account', 400);
+  }
+
+  try {
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return ok(res, {}, 'User deleted');
+  } catch (err) {
+    console.error('deleteUser error:', err);
+
+    if (err.code === 'P2025') {
+      return bad(res, 'User not found', 404);
+    }
+
+    return bad(res, 'Failed to delete user', 500);
+  }
+}
+
+
+export async function getDashboardStats(req, res) {
+  const userId = req.user?.id;
+  const userRole = req.user?.role;
+
+  if (!userId) return bad(res, 'Unauthorized', 401);
+  if (userRole !== 'agent') return bad(res, 'Access denied. Agent role required.', 403);
+
+  try {
+    // Date calculations
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Parallel queries for better performance
+    const [
+      totalRequests,
+      statusCounts,
+      thisMonthCompleted,
+      lastMonthCompleted,
+      thisWeekRequests,
+      recentRequests,
+    ] = await Promise.all([
+      // Total requests count
+      prisma.request.count({
+        where: { agentId: userId },
+      }),
+
+      prisma.request.groupBy({
+        by: ['status'],
+        where: { agentId: userId },
+        _count: { id: true },
+      }),
+
+      // This month completed
+      prisma.request.count({
+        where: {
+          agentId: userId,
+          status: 'completed',
+          createdAt: { gte: startOfMonth },
+        },
+      }),
+
+      // Last month completed
+      prisma.request.count({
+        where: {
+          agentId: userId,
+          status: 'completed',
+          createdAt: {
+            gte: startOfLastMonth,
+            lte: endOfLastMonth,
+          },
+        },
+      }),
+
+      // Requests created in the last 7 days
+      prisma.request.count({
+        where: {
+          agentId: userId,
+          createdAt: { gte: oneWeekAgo },
+        },
+      }),
+
+      // Recent 5 requests with template info
+      prisma.request.findMany({
+        where: { agentId: userId },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          projectTitle: true,
+          status: true,
+          createdAt: true,
+          template: {
+            select: {
+              title: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    // Process status counts into a more usable format
+    const statusMap = statusCounts.reduce((acc, item) => {
+      acc[item.status] = item._count.id;
+      return acc;
+    }, {});
+
+    const pendingRequests = (statusMap.new || 0) + (statusMap.revision || 0);
+    const inProgressRequests = statusMap.progress || 0;
+    const completedRequests = statusMap.completed || 0;
+
+    // Calculate month-over-month trend
+    let monthTrend = 0;
+    if (lastMonthCompleted > 0) {
+      monthTrend = Math.round(
+        ((thisMonthCompleted - lastMonthCompleted) / lastMonthCompleted) * 100
+      );
+    } else if (thisMonthCompleted > 0) {
+      monthTrend = 100;
+    }
+
+    // Format recent requests with relative time
+    const formattedRecentRequests = recentRequests.map((request) => {
+      const timeAgo = getRelativeTime(request.createdAt);
+      return {
+        id: request.id,
+        title: request.projectTitle,
+        status: request.status,
+        date: timeAgo,
+        template: request.template.title,
+      };
+    });
+
+    // Build the response
+    const stats = {
+      overview: {
+        totalRequests,
+        pendingRequests,
+        inProgressRequests,
+        completedRequests,
+        thisWeekRequests,
+        thisMonthCompleted,
+        monthTrend,
+      },
+      statusBreakdown: {
+        new: statusMap.new || 0,
+        progress: statusMap.progress || 0,
+        revision: statusMap.revision || 0,
+        completed: statusMap.completed || 0,
+      },
+      recentRequests: formattedRecentRequests,
+    };
+
+    return ok(res, { stats }, 'Dashboard stats retrieved');
+  } catch (err) {
+    console.error('getDashboardStats error:', err);
+    return bad(res, 'Failed to fetch dashboard stats', 500);
+  }
+}

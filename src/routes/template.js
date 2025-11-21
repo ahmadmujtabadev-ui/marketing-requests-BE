@@ -12,15 +12,12 @@ import { uploadTemplatePreview } from '../config/uploadTemplatePreview.js';
 
 const router = Router();
 
-// Public/Authenticated routes - All users can view templates
 router.get('/', getTemplates);
 router.get('/categories', authRequired, getCategories);
 router.get('/:id', authRequired, getTemplate);
 
-// Admin-only routes - Only admins can manage templates
 router.post('/',
   uploadTemplatePreview.single("previewUrl"),
-
   authRequired, createTemplate);
 
 router.put(
