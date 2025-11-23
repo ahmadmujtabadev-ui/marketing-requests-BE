@@ -11,7 +11,6 @@ function bad(res, msg = 'Bad request', code = 400) {
   return res.status(code).json({ error: msg });
 }
 
-// GET /api/stats/overview - Get complete dashboard overview
 export async function getOverview(req, res) {
   try {
     const [
@@ -119,7 +118,6 @@ export async function getOverview(req, res) {
   }
 }
 
-// GET /api/stats/users - Get detailed user statistics
 export async function getUserStats(req, res) {
   try {
     const [
@@ -177,7 +175,6 @@ export async function getUserStats(req, res) {
   }
 }
 
-// GET /api/stats/templates - Get detailed template statistics
 export async function getTemplateStats(req, res) {
   try {
     const [
@@ -252,7 +249,6 @@ export async function getTemplateStats(req, res) {
   }
 }
 
-// GET /api/stats/requests - Get detailed request statistics
 export async function getRequestStats(req, res) {
   try {
     const [
@@ -328,7 +324,6 @@ export async function getRequestStats(req, res) {
   }
 }
 
-// Helper function to get monthly request stats
 async function getMonthlyRequestStats() {
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
@@ -366,7 +361,6 @@ async function getMonthlyRequestStats() {
   return Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month));
 }
 
-// Helper function to calculate average completion time
 async function getAverageCompletionTime() {
   const completedRequests = await prisma.request.findMany({
     where: { status: 'completed' },

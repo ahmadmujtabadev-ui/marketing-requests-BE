@@ -46,14 +46,11 @@ export async function register(req, res) {
   return created(res, { user: toPublicUser(user), ...tokens }, 'Signup processed');
 }
 
-// POST /api/auth/login
-// POST /api/auth/login
 export async function login(req, res) {
 
   const { email, password } = req.body || {};
   if (!email || !password) return bad(res, 'Email and password are required');
 
-  // minimal fields needed for auth + audit
   const user = await prisma.user.findUnique({
     where: { email },
     select: {
@@ -70,12 +67,11 @@ export async function login(req, res) {
   const okPw = await bcrypt.compare(String(password), user.passwordHash);
   if (!okPw) return bad(res, 'Invalid credentials', 401);
 
-  const tokens = signTokens(user); // you already have user; no need to re-fetch
+  const tokens = signTokens(user); 
   return ok(res, { user: toPublicUser(user), ...tokens }, 'Login processed');
 }
 
 
-// POST /api/auth/refresh
 export async function refresh(req, res) {
   const { refreshToken } = req.body || {};
   if (!refreshToken) return bad(res, 'Missing refreshToken');
@@ -91,7 +87,6 @@ export async function refresh(req, res) {
   }
 }
 
-// GET /api/auth/me   (requires auth middleware that sets req.user)
 export async function me(req, res) {
   const userId = req.user.id;
   console.log("userId", userId)
@@ -102,14 +97,12 @@ export async function me(req, res) {
   return ok(res, { user });
 }
 
-// POST /api/auth/forgot-password
 export async function forgotPassword(req, res) {
   const { email } = req.body || {};
   if (!email) return bad(res, 'Email required');
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    // do not reveal existence
     return ok(res, {}, 'If the email exists, a reset link has been sent.');
   }
 
@@ -122,7 +115,6 @@ export async function forgotPassword(req, res) {
     data: { passwordResetTokenHash: hash, passwordResetExpires: expires },
   });
 
-  // TODO: send email with link containing ?token=<rawToken>
   const response =
     process.env.NODE_ENV === 'development'
       ? { devToken: rawToken }
@@ -131,7 +123,6 @@ export async function forgotPassword(req, res) {
   return ok(res, response, 'If the email exists, a reset link has been sent.');
 }
 
-// POST /api/auth/reset-password
 export async function resetPassword(req, res) {
   const { token, newPassword } = req.body || {};
   if (!token || !newPassword) return bad(res, 'Token and newPassword required');
@@ -160,7 +151,6 @@ export async function resetPassword(req, res) {
   return ok(res, {}, 'Password reset');
 }
 
-// POST /api/auth/change-password   (auth required)
 export async function changePassword(req, res) {
   const userId = req.user?.sub;
   if (!userId) return bad(res, 'Unauthorized', 401);
@@ -180,7 +170,6 @@ export async function changePassword(req, res) {
   return ok(res, {}, 'Password changed');
 }
 
-// POST /api/auth/toggle-2fa   (auth required)  -> requires twoFactorEnabled column
 export async function toggle2FA(req, res) {
   const userId = req.user?.sub;
   if (!userId) return bad(res, 'Unauthorized', 401);
@@ -197,9 +186,6 @@ export async function toggle2FA(req, res) {
   return ok(res, { twoFactorEnabled: updated.twoFactorEnabled }, '2FA flag toggled');
 }
 
-// ---- exports ---------------------------------------------------------------
-
-// UPDATE USER (Admin only)  - PUT /api/users/:id
 export async function updateUser(req, res) {
   const authUserId = req.user?.id;
   console.log("authUserId", authUserId)
@@ -311,14 +297,12 @@ export async function getDashboardStats(req, res) {
   if (userRole !== 'agent') return bad(res, 'Access denied. Agent role required.', 403);
 
   try {
-    // Date calculations
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // Parallel queries for better performance
     const [
       totalRequests,
       statusCounts,
@@ -327,7 +311,6 @@ export async function getDashboardStats(req, res) {
       thisWeekRequests,
       recentRequests,
     ] = await Promise.all([
-      // Total requests count
       prisma.request.count({
         where: { agentId: userId },
       }),
@@ -338,7 +321,6 @@ export async function getDashboardStats(req, res) {
         _count: { id: true },
       }),
 
-      // This month completed
       prisma.request.count({
         where: {
           agentId: userId,
@@ -347,7 +329,6 @@ export async function getDashboardStats(req, res) {
         },
       }),
 
-      // Last month completed
       prisma.request.count({
         where: {
           agentId: userId,
@@ -359,7 +340,6 @@ export async function getDashboardStats(req, res) {
         },
       }),
 
-      // Requests created in the last 7 days
       prisma.request.count({
         where: {
           agentId: userId,
@@ -367,7 +347,6 @@ export async function getDashboardStats(req, res) {
         },
       }),
 
-      // Recent 5 requests with template info
       prisma.request.findMany({
         where: { agentId: userId },
         take: 5,
@@ -386,7 +365,6 @@ export async function getDashboardStats(req, res) {
       }),
     ]);
 
-    // Process status counts into a more usable format
     const statusMap = statusCounts.reduce((acc, item) => {
       acc[item.status] = item._count.id;
       return acc;
@@ -396,7 +374,6 @@ export async function getDashboardStats(req, res) {
     const inProgressRequests = statusMap.progress || 0;
     const completedRequests = statusMap.completed || 0;
 
-    // Calculate month-over-month trend
     let monthTrend = 0;
     if (lastMonthCompleted > 0) {
       monthTrend = Math.round(
@@ -406,7 +383,6 @@ export async function getDashboardStats(req, res) {
       monthTrend = 100;
     }
 
-    // Format recent requests with relative time
     const formattedRecentRequests = recentRequests.map((request) => {
       const timeAgo = getRelativeTime(request.createdAt);
       return {
@@ -418,7 +394,6 @@ export async function getDashboardStats(req, res) {
       };
     });
 
-    // Build the response
     const stats = {
       overview: {
         totalRequests,

@@ -1,7 +1,6 @@
 // import { PrismaClient } from "../../prisma/generated/client/index.js";
 import { PrismaClient } from "@prisma/client";
 
-
 const prisma = new PrismaClient()
 
 function ok(res, data = {}, message = 'OK') {
@@ -16,7 +15,6 @@ function bad(res, msg = 'Bad request', code = 400) {
   return res.status(code).json({ error: msg });
 }
 
-// GET /api/requests - Get all requests (role-based filtering)
 export async function getRequests(req, res) {
   try {
     const userId = req.user.id;
@@ -26,11 +24,9 @@ export async function getRequests(req, res) {
 
     const where = {};
     
-    // Agents see only their own requests
     if (userRole === 'agent') {
       where.agentId = userId;
     }
-    // VAs and Admins see all requests
     
     if (status) where.status = status;
 
@@ -55,7 +51,6 @@ export async function getRequests(req, res) {
   }
 }
 
-// GET /api/requests/:id - Get single request
 export async function getRequest(req, res) {
   try {
     const { id } = req.params;
@@ -77,7 +72,6 @@ export async function getRequest(req, res) {
 
     if (!request) return bad(res, 'Request not found', 404);
 
-    // Agents can only see their own requests
     if (userRole === 'agent' && request.agentId !== userId) {
       return bad(res, 'Unauthorized', 403);
     }
@@ -91,7 +85,6 @@ export async function getRequest(req, res) {
 
 export async function createRequest(req, res) {
   try {
-    // Ensure user is authenticated and has id
     const agentId = req?.user.id;
     if (!agentId) {
       return bad(res, 'Unauthorized: missing agent id from token', 401);
@@ -107,7 +100,6 @@ export async function createRequest(req, res) {
       fileUrls 
     } = req.body;
 
-    // Basic validation
     if (!templateId || !projectTitle) {
       return bad(res, 'Template ID and project title are required');
     }
@@ -120,19 +112,16 @@ export async function createRequest(req, res) {
       return bad(res, 'At least one platform is required');
     }
 
-    // Verify template exists
     const template = await prisma.template.findUnique({ where: { id: templateId } });
     if (!template) {
       return bad(res, 'Template not found', 404);
     }
 
-    // Parse deadline to Date
     const deadlineDate = new Date(deadline);
     if (isNaN(deadlineDate.getTime())) {
       return bad(res, 'Invalid deadline format');
     }
 
-    // Create request with new fields
     const request = await prisma.request.create({
       data: {
         agentId,
@@ -154,7 +143,6 @@ export async function createRequest(req, res) {
       },
     });
 
-    // Create file records if provided
     if (fileUrls && Array.isArray(fileUrls) && fileUrls.length > 0) {
       await prisma.requestFile.createMany({
         data: fileUrls.map((url) => ({
@@ -165,7 +153,6 @@ export async function createRequest(req, res) {
       });
     }
 
-    // Fetch complete request with files
     const completeRequest = await prisma.request.findUnique({
       where: { id: request.id },
       include: {
@@ -186,8 +173,6 @@ export async function createRequest(req, res) {
   }
 }
 
-
-// PUT /api/requests/:id/status - Update request status (VA/Admin)
 export async function updateRequestStatus(req, res) {
   try {
     const { id } = req.params;
@@ -222,7 +207,6 @@ export async function updateRequestStatus(req, res) {
   }
 }
 
-// POST /api/requests/:id/files - Upload completed files (VA only)
 export async function uploadCompletedFile(req, res) {
   try {
     const { id } = req.params;
@@ -248,7 +232,6 @@ export async function uploadCompletedFile(req, res) {
   }
 }
 
-// DELETE /api/requests/:id/files/:fileId - Delete file
 export async function deleteRequestFile(req, res) {
   try {
     const { id, fileId } = req.params;
@@ -266,7 +249,6 @@ export async function deleteRequestFile(req, res) {
   }
 }
 
-// PUT /api/requests/:id - Update request (Agent can update their own)
 export async function updateRequest(req, res) {
   try {
     const { id } = req.params;
@@ -331,7 +313,6 @@ export async function updateRequest(req, res) {
   }
 }
 
-// GET /api/requests/stats - Get request statistics (for dashboards)
 export async function getRequestStats(req, res) {
   try {
     const userId = req.user?.sub;

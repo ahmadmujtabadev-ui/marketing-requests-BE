@@ -1,28 +1,14 @@
 import multer from "multer";
-import fs from "fs";
+import multerS3 from "multer-s3";
 import path from "path";
+import { S3Client } from "@aws-sdk/client-s3";
+import { ENV } from "../config/env.js"; 
 
-// In serverless (Vercel / Lambda etc.), /tmp is the only writable dir
-const BASE_UPLOAD_DIR = "/tmp";
-
-// Folder where you want template previews stored
-const TEMPLATE_UPLOAD_DIR = path.join(BASE_UPLOAD_DIR, "uploads", "templates");
-
-// Ensure directory exists (ignore error if cannot create in read-only env)
-try {
-  fs.mkdirSync(TEMPLATE_UPLOAD_DIR, { recursive: true });
-} catch (err) {
-  console.error("Failed to create upload dir:", err);
-}
-
-const storage = multer.diskStorage({
-  destination(req, file, cb) {
-    cb(null, TEMPLATE_UPLOAD_DIR);
-  },
-  filename(req, file, cb) {
-    const ext = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext);
-    cb(null, `${base}-${Date.now()}${ext}`);
+const s3 = new S3Client({
+  region: ENV.AWS_REGION,
+  credentials: {
+    accessKeyId: ENV.AWS_ACCESS_KEY_ID,
+    secretAccessKey: ENV.AWS_SECRET_ACCESS_KEY,
   },
 });
 
@@ -34,7 +20,19 @@ const fileFilter = (req, file, cb) => {
 };
 
 export const uploadTemplatePreview = multer({
-  storage,
+  storage: multerS3({
+    s3,
+    bucket: ENV.AWS_S3_TEMPLATES_BUCKET, 
+    contentType: multerS3.AUTO_CONTENT_TYPE,
+    key(req, file, cb) {
+      const ext = path.extname(file.originalname);
+      const base = path.basename(file.originalname, ext);
+
+      const fileName = `${base}-${Date.now()}${ext}`;
+
+      cb(null, `templates/${fileName}`);
+    },
+  }),
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB

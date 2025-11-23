@@ -1,4 +1,3 @@
-// src/controllers/userManagement.js
 import { PrismaClient } from "@prisma/client";
 import bcrypt from 'bcryptjs';
 
@@ -30,7 +29,6 @@ function bad(res, msg = 'Bad request', code = 400) {
   return res.status(code).json({ error: msg });
 }
 
-// GET /api/users - List all users (Admin only)
 export async function listUsers(req, res) {
   try {
     const { role, isActive, search, page = 1, limit = 10 } = req.query;
@@ -83,7 +81,6 @@ export async function listUsers(req, res) {
   }
 }
 
-// GET /api/users/:id - Get single user (Admin only)
 export async function getUser(req, res) {
   try {
     const { id } = req.params;
@@ -106,7 +103,6 @@ export async function getUser(req, res) {
   }
 }
 
-// POST /api/users - Create new user (Admin only)
 export async function createUser(req, res) {
   try {
     const { name, email, password, role = 'agent' } = req.body;
@@ -141,7 +137,6 @@ export async function createUser(req, res) {
   }
 }
 
-// PUT /api/users/:id - Update user (Admin only)
 export async function updateUser(req, res) {
   try {
     const { id } = req.params;
@@ -179,7 +174,6 @@ export async function updateUser(req, res) {
   }
 }
 
-// DELETE /api/users/:id - Delete user (Admin only)
 export async function deleteUser(req, res) {
   try {
     const { id } = req.params;
@@ -201,7 +195,6 @@ export async function deleteUser(req, res) {
   }
 }
 
-// POST /api/users/:id/reset-password - Admin reset user password
 export async function adminResetPassword(req, res) {
   try {
     const { id } = req.params;
@@ -228,7 +221,6 @@ export async function adminResetPassword(req, res) {
   }
 }
 
-// POST /api/users/:id/toggle-active - Toggle user active status
 export async function toggleUserActive(req, res) {
   try {
     const { id } = req.params;
@@ -256,7 +248,6 @@ export async function toggleUserActive(req, res) {
   }
 }
 
-// GET /api/users/stats - Get user statistics (Admin only)
 export async function getUserStats(req, res) {
   try {
     const [total, active, byRole] = await Promise.all([

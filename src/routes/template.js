@@ -25,6 +25,7 @@ router.put(
   uploadTemplatePreview.single("previewUrl"),
   updateTemplate
 );
+
 router.delete('/:id', deleteTemplate);
 
 export default router;

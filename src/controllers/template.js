@@ -18,7 +18,6 @@ function bad(res, msg = 'Bad request', code = 400) {
   return res.status(code).json({ error: msg });
 }
 
-// GET /api/templates - Get all templates (with optional filters)
 export async function getTemplates(req, res) {
   try {
     const { category, type } = req.query;
@@ -42,7 +41,6 @@ export async function getTemplates(req, res) {
   }
 }
 
-// GET /api/templates/:id - Get single template
 export async function getTemplate(req, res) {
   try {
     const { id } = req.params;
@@ -75,7 +73,7 @@ export async function createTemplate(req, res) {
     let finalPreviewUrl = previewUrl || null;
 
     if (req.file) {
-      finalPreviewUrl = `${ENV.BASE_URL}/uploads/templates/${req.file.filename}`;
+      finalPreviewUrl = req.file.location;
     }
 
     const template = await prisma.template.create({
@@ -83,7 +81,7 @@ export async function createTemplate(req, res) {
         title,
         category,
         type,
-        previewUrl: finalPreviewUrl,
+        previewUrl: finalPreviewUrl,   // same field name as before
         canvaUrl: canvaUrl || null,
       },
     });
@@ -95,6 +93,7 @@ export async function createTemplate(req, res) {
   }
 }
 
+
 export async function updateTemplate(req, res) {
   try {
     const { id } = req.params;
@@ -103,7 +102,7 @@ export async function updateTemplate(req, res) {
     const exists = await prisma.template.findUnique({ where: { id } });
     if (!exists) return bad(res, "Template not found", 404);
 
-    const data = {};
+    const data= {};
 
     if (title !== undefined) data.title = title;
     if (category !== undefined) data.category = category;
@@ -118,9 +117,10 @@ export async function updateTemplate(req, res) {
     if (canvaUrl !== undefined) data.canvaUrl = canvaUrl;
 
     if (req.file) {
-      const fileUrl = `${ENV.BASE_URL}/uploads/templates/${req.file.filename}`;
-      data.previewUrl = fileUrl;
+      // overwrite previewUrl with the new S3 file URL
+      data.previewUrl = req.file.location;
     } else if (previewUrl !== undefined) {
+      // allow direct URL override if sent in body
       data.previewUrl = previewUrl;
     }
 
@@ -136,7 +136,7 @@ export async function updateTemplate(req, res) {
   }
 }
 
-// DELETE /api/templates/:id - Delete template (Admin only)
+
 export async function deleteTemplate(req, res) {
   try {
     const { id } = req.params;
@@ -144,7 +144,6 @@ export async function deleteTemplate(req, res) {
     const exists = await prisma.template.findUnique({ where: { id } });
     if (!exists) return bad(res, 'Template not found', 404);
 
-    // Check if template is used in any requests
     const requestCount = await prisma.request.count({
       where: { templateId: id }
     });
@@ -162,7 +161,6 @@ export async function deleteTemplate(req, res) {
   }
 }
 
-// GET /api/templates/categories - Get all unique categories
 export async function getCategories(req, res) {
   try {
     const { type } = req.query;
