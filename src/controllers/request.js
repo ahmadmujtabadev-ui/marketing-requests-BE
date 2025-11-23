@@ -19,7 +19,7 @@ function bad(res, msg = 'Bad request', code = 400) {
 // GET /api/requests - Get all requests (role-based filtering)
 export async function getRequests(req, res) {
   try {
-    const userId = req.user?.sub;
+    const userId = req.user;
     const userRole = req.user?.role;
     const { status } = req.query;
 
@@ -91,7 +91,7 @@ export async function getRequest(req, res) {
 export async function createRequest(req, res) {
   try {
     // Ensure user is authenticated and has id
-    const agentId = req.user?.id;
+    const agentId = req?.user;
     if (!agentId) {
       return bad(res, 'Unauthorized: missing agent id from token', 401);
     }
