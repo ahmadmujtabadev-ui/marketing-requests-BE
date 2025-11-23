@@ -12,7 +12,7 @@ import { uploadTemplatePreview } from '../config/uploadTemplatePreview.js';
 
 const router = Router();
 
-router.get('/', getTemplates);
+router.get('/', authRequired ,  getTemplates);
 router.get('/categories', authRequired, getCategories);
 router.get('/:id', authRequired, getTemplate);
 
