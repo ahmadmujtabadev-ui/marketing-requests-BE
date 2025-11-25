@@ -5,26 +5,34 @@ import {
   createTemplate,
   updateTemplate,
   deleteTemplate,
-  getCategories
+  getCategories,
+  createTemplatesBulk
 } from '../controllers/template.js';
 import { authRequired } from '../middleware/auth.js';
-import { uploadTemplatePreview } from '../config/uploadTemplatePreview.js';
+import { templateUpload } from '../config/uploadTemplatePreview.js';
 
 const router = Router();
 
-router.get('/', authRequired ,  getTemplates);
+router.get('/', authRequired, getTemplates);
 router.get('/categories', authRequired, getCategories);
 router.get('/:id', authRequired, getTemplate);
 
-router.post('/',
-  uploadTemplatePreview.single("previewUrl"),
-  authRequired, createTemplate);
+// router.post('/',
+//   uploadTemplatePreview.single("previewUrl"),
+//   authRequired, createTemplate);
 
-router.put(
-  "/:id",
-  uploadTemplatePreview.single("previewUrl"),
-  updateTemplate
+// routes/templates.ts
+router.post(
+  "/bulk",
+  templateUpload.array("previewUrl", 200),
+  createTemplatesBulk
 );
+
+// router.put(
+//   "/:id",
+//   uploadTemplatePreview.single("previewUrl"),
+//   updateTemplate
+// );
 
 router.delete('/:id', deleteTemplate);
 

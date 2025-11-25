@@ -5,6 +5,7 @@ import { PrismaClient } from "@prisma/client";
 import { ENV } from "../config/env.js";
 
 const prisma = new PrismaClient()
+import path from "path";    
 
 function ok(res, data = {}, message = 'OK') {
   return res.status(200).json({ message, ...data });
@@ -93,6 +94,52 @@ export async function createTemplate(req, res) {
   }
 }
 
+export async function createTemplatesBulk(req, res) {
+  try {
+    const { category, type, canvaUrl, titlePrefix } = req.body;
+    const files = req.files || [];
+
+    if (!files.length) {
+      return bad(res, "No files uploaded");
+    }
+
+    if (!category || !type) {
+      return bad(res, "Category and type are required");
+    }
+
+    if (!["residential", "commercial"].includes(type)) {
+      return bad(res, "Type must be residential or commercial");
+    }
+
+    const data = files.map((file, index) => {
+      const ext = path.extname(file.originalname);
+      const base = path.basename(file.originalname, ext);
+      const title = titlePrefix ? `${titlePrefix} - ${index + 1}` : base;
+
+      return {
+        title,
+        category,
+        type,
+        previewUrl: file.location,
+        canvaUrl: canvaUrl || null,
+      };
+    });
+
+    const createdTemplates = await prisma.template.createMany({
+      data,
+      skipDuplicates: true,
+    });
+
+    return created(
+      res,
+      { count: createdTemplates.count },
+      "Bulk templates created"
+    );
+  } catch (error) {
+    console.error("Bulk create template error:", error);
+    return bad(res, "Failed to create templates", 500);
+  }
+}
 
 export async function updateTemplate(req, res) {
   try {
@@ -135,7 +182,6 @@ export async function updateTemplate(req, res) {
     return bad(res, "Failed to update template", 500);
   }
 }
-
 
 export async function deleteTemplate(req, res) {
   try {
