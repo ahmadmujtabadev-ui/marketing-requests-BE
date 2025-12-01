@@ -220,7 +220,7 @@ export async function sendPasswordResetEmail({ userEmail, userName, resetToken }
     return;
   }
 
-  const resetUrl = `http://localhost:3000/auth/newpassword?token=${resetToken}`;
+  const resetUrl = `https://www.owghub.com/auth/newpassword?token=${resetToken}`;
   const subject = "Reset Your Password - One West Group";
 
   const text =
