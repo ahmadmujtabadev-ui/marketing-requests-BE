@@ -88,13 +88,13 @@ export async function login(req, res) {
   // Optional: Send login notification email
   // Uncomment if you want to notify users on every login
   
-   sendWelcomeEmail({
-     userEmail: user.email,
-     userName: user.name,
-     role: user.role,
-   }).catch(err => {
-   console.error('Login email error:', err);
-   });
+  //  sendWelcomeEmail({
+  //    userEmail: user.email,
+  //    userName: user.name,
+  //    role: user.role,
+  //  }).catch(err => {
+  //  console.error('Login email error:', err);
+  //  });
 
   const tokens = signTokens(user);
   return ok(res, { user: toPublicUser(user), ...tokens }, 'Login processed');
