@@ -82,7 +82,7 @@ export async function createTemplate(req, res) {
         title,
         category,
         type,
-        previewUrl: finalPreviewUrl,   // same field name as before
+        previewUrl: finalPreviewUrl,  
         canvaUrl: canvaUrl || null,
       },
     });
