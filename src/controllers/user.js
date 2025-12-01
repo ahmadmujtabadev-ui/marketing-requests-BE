@@ -2,7 +2,9 @@
 import { PrismaClient } from "@prisma/client";
 
 import { signTokens } from "../middleware/auth.js";
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs'
+import { sendPasswordResetEmail, sendWelcomeEmail } from "../utils/notificationEmails.js";
 
 const prisma = new PrismaClient()
 
@@ -29,7 +31,7 @@ function bad(res, msg = 'Bad request', code = 400) {
 }
 
 export async function register(req, res) {
-  const { name, email, password, role  } = req.body || {};
+  const { name, email, password, role } = req.body || {};
   if (!email || !password) return bad(res, 'Email and password are required');
   console.log('DB:', (process.env.DATABASE_URL || '').replace(/:\/\/.*@/, '://***@'));
 
@@ -39,7 +41,23 @@ export async function register(req, res) {
   const passwordHash = await bcrypt.hash(String(password), 12);
 
   const user = await prisma.user.create({
-    data: { name: name || email.split('@')[0], email, passwordHash, role, isActive: true },
+    data: { 
+      name: name || email.split('@')[0], 
+      email, 
+      passwordHash, 
+      role, 
+      isActive: true 
+    },
+  });
+
+  // Send welcome email (async - don't wait for it)
+  sendWelcomeEmail({
+    userEmail: user.email,
+    userName: user.name,
+    role: user.role,
+  }).catch(err => {
+    console.error('Welcome email error:', err);
+    // Don't fail registration if email fails
   });
 
   const tokens = signTokens(user);
@@ -47,7 +65,6 @@ export async function register(req, res) {
 }
 
 export async function login(req, res) {
-
   const { email, password } = req.body || {};
   if (!email || !password) return bad(res, 'Email and password are required');
 
@@ -56,9 +73,10 @@ export async function login(req, res) {
     select: {
       id: true,
       email: true,
+      name: true,  // Added to have user name available
       isActive: true,
       passwordHash: true,
-      role:true,
+      role: true,
     },
   });
 
@@ -67,9 +85,63 @@ export async function login(req, res) {
   const okPw = await bcrypt.compare(String(password), user.passwordHash);
   if (!okPw) return bad(res, 'Invalid credentials', 401);
 
-  const tokens = signTokens(user); 
+  // Optional: Send login notification email
+  // Uncomment if you want to notify users on every login
+  
+   sendWelcomeEmail({
+     userEmail: user.email,
+     userName: user.name,
+     role: user.role,
+   }).catch(err => {
+   console.error('Login email error:', err);
+   });
+
+  const tokens = signTokens(user);
   return ok(res, { user: toPublicUser(user), ...tokens }, 'Login processed');
 }
+
+// export async function register(req, res) {
+//   const { name, email, password, role  } = req.body || {};
+//   if (!email || !password) return bad(res, 'Email and password are required');
+//   console.log('DB:', (process.env.DATABASE_URL || '').replace(/:\/\/.*@/, '://***@'));
+
+//   const exists = await prisma.user.findUnique({ where: { email } });
+//   if (exists) return bad(res, 'Email already registered', 409);
+
+//   const passwordHash = await bcrypt.hash(String(password), 12);
+
+//   const user = await prisma.user.create({
+//     data: { name: name || email.split('@')[0], email, passwordHash, role, isActive: true },
+//   });
+
+//   const tokens = signTokens(user);
+//   return created(res, { user: toPublicUser(user), ...tokens }, 'Signup processed');
+// }
+
+// export async function login(req, res) {
+
+//   const { email, password } = req.body || {};
+//   if (!email || !password) return bad(res, 'Email and password are required');
+
+//   const user = await prisma.user.findUnique({
+//     where: { email },
+//     select: {
+//       id: true,
+//       email: true,
+//       isActive: true,
+//       passwordHash: true,
+//       role:true,
+//     },
+//   });
+
+//   if (!user || !user.isActive) return bad(res, 'Invalid credentials', 401);
+
+//   const okPw = await bcrypt.compare(String(password), user.passwordHash);
+//   if (!okPw) return bad(res, 'Invalid credentials', 401);
+
+//   const tokens = signTokens(user); 
+//   return ok(res, { user: toPublicUser(user), ...tokens }, 'Login processed');
+// }
 
 
 export async function refresh(req, res) {
@@ -103,6 +175,7 @@ export async function forgotPassword(req, res) {
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
+    // Security: Don't reveal if email exists or not
     return ok(res, {}, 'If the email exists, a reset link has been sent.');
   }
 
@@ -114,6 +187,18 @@ export async function forgotPassword(req, res) {
     where: { id: user.id },
     data: { passwordResetTokenHash: hash, passwordResetExpires: expires },
   });
+
+  // Send password reset email
+  try {
+    await sendPasswordResetEmail({
+      userEmail: user.email,
+      userName: user.name || user.email.split('@')[0],
+      resetToken: rawToken,
+    });
+  } catch (error) {
+    console.error('Failed to send password reset email:', error);
+    // Continue even if email fails - don't expose that to user
+  }
 
   const response =
     process.env.NODE_ENV === 'development'

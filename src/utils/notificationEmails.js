@@ -4,7 +4,6 @@ import { sendEmail } from "./sendEmail.js";
 
 const ADMIN_EMAIL = "admin@account.com";
 
-// Simple base HTML template with Saad's branding in the footer
 function baseEmailTemplate({ title, messageLines = [], buttonLabel, buttonHref }) {
   const messageHtml = messageLines
     .map(
@@ -168,4 +167,92 @@ export async function sendRequestCompletedNotificationEmail({
   }
 
   await Promise.all(tasks);
+}
+
+
+// NEW: Welcome email for new user registration
+export async function sendWelcomeEmail({ userEmail, userName, role }) {
+  if (!userEmail) {
+    console.warn("User email not provided – skipping welcome email.");
+    return;
+  }
+
+  const subject = "Welcome to One West Group Marketing Platform";
+
+  const dashboardUrl = "https://www.owghub.com/"
+
+  const text =
+    `Dear ${userName},\n\n` +
+    `Welcome to the One West Group Marketing Requests Platform!\n\n` +
+    `Your account has been successfully created. You can now log in and start managing your marketing requests.\n\n` +
+    `Thank you for joining us!`;
+
+  const html = baseEmailTemplate({
+    title: "Welcome to One West Group!",
+    messageLines: [
+      `Dear <strong>${userName}</strong>,`,
+      "Welcome to the <strong>One West Group Marketing Requests Platform</strong>!",
+      "Your account has been successfully created. You can now log in and start managing your marketing requests.",
+      "We're excited to have you on board and look forward to supporting your marketing needs.",
+    ],
+    buttonLabel: "Go to Dashboard",
+    buttonHref: dashboardUrl,
+  });
+
+  try {
+    await sendEmail({
+      to: userEmail,
+      subject,
+      text,
+      html,
+    });
+    console.log(`Welcome email sent to ${userEmail}`);
+  } catch (error) {
+    console.error(`Failed to send welcome email to ${userEmail}:`, error);
+    // Don't throw - we don't want email failures to break registration
+  }
+}
+
+// 3) Password reset email → send reset link to user
+export async function sendPasswordResetEmail({ userEmail, userName, resetToken }) {
+  if (!userEmail) {
+    console.warn("User email not provided – skipping password reset email.");
+    return;
+  }
+
+  const resetUrl = `https://www.owghub.com/auth/newpassword?token=${resetToken}`;
+  const subject = "Reset Your Password - One West Group";
+
+  const text =
+    `Dear ${userName},\n\n` +
+    `We received a request to reset your password for your One West Group account.\n\n` +
+    `Click the link below to reset your password (valid for 30 minutes):\n` +
+    `${resetUrl}\n\n` +
+    `If you didn't request this, please ignore this email.\n\n` +
+    `Thank you.`;
+
+  const html = baseEmailTemplate({
+    title: "Password Reset Request",
+    messageLines: [
+      `Dear <strong>${userName}</strong>,`,
+      "We received a request to reset your password for your One West Group account.",
+      "Click the button below to reset your password. This link is valid for <strong>30 minutes</strong>.",
+      "If you didn't request a password reset, please ignore this email and your password will remain unchanged.",
+    ],
+    buttonLabel: "Reset Password",
+    buttonHref: resetUrl,
+  });
+
+  try {
+    await sendEmail({
+      to: userEmail,
+      subject,
+      text,
+      html,
+    });
+    console.log(`Password reset email sent to ${userEmail}`);
+  } catch (error) {
+    console.error(`Failed to send password reset email to ${userEmail}:`, error);
+    throw error; // Re-throw so caller knows it failed
+  }
 }
