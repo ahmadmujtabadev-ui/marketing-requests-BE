@@ -6,7 +6,8 @@ import {
   updateRequestStatus,
   uploadCompletedFile,
   deleteRequestFile,
-  getRequestStats
+  getRequestStats,
+  Downloadfilehandler,
 } from '../controllers/request.js';
 import { authRequired } from '../middleware/auth.js';
 import { templateUpload } from '../config/uploadTemplatePreview.js';
@@ -24,6 +25,7 @@ router.post(
   createRequest
 );
 
+router.get('/download/file', Downloadfilehandler)
 router.put('/:id/status', authRequired, updateRequestStatus);
 router.post(
   "/:id/files",

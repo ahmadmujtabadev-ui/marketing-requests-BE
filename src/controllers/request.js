@@ -1,7 +1,7 @@
 // import { PrismaClient } from "../../prisma/generated/client/index.js";
 import { PrismaClient } from "@prisma/client";
 import { sendNewRequestNotificationEmail, sendRequestCompletedNotificationEmail } from "../utils/notificationEmails.js";
-
+import axios from 'axios';
 const prisma = new PrismaClient()
 
 function ok(res, data = {}, message = 'OK') {
@@ -406,5 +406,25 @@ export async function getRequestStats(req, res) {
   } catch (error) {
     console.error('Get stats error:', error);
     return bad(res, 'Failed to fetch stats', 500);
+  }
+}
+
+export async function Downloadfilehandler(req, res) {
+  const { fileUrl } = req.query;
+  
+  try {
+    const response = await axios.get(fileUrl, {
+      responseType: 'arraybuffer'
+    });
+    
+    // Get filename from URL
+    const fileName = fileUrl.split('/').pop();
+    
+    // Set headers to force download
+    res.setHeader('Content-Type', response.headers['content-type']);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(Buffer.from(response.data));
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to download file' });
   }
 }
