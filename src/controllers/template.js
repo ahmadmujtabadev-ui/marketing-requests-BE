@@ -61,7 +61,7 @@ export async function getTemplate(req, res) {
 
 export async function createTemplate(req, res) {
   try {
-    const { title, category, type, canvaUrl, previewUrl } = req.body;
+    const { title, category, type, previewUrl } = req.body;
 
     if (!title || !category || !type) {
       return bad(res, "Title, category, and type are required");
@@ -83,7 +83,7 @@ export async function createTemplate(req, res) {
         category,
         type,
         previewUrl: finalPreviewUrl,  
-        canvaUrl: canvaUrl || null,
+        canvaUrl:  null,
       },
     });
 
@@ -96,7 +96,7 @@ export async function createTemplate(req, res) {
 
 export async function createTemplatesBulk(req, res) {
   try {
-    const { category, type, canvaUrl, titlePrefix } = req.body;
+    const { category, type,  titlePrefix } = req.body;
     const files = req.files || [];
 
     if (!files.length) {
@@ -121,7 +121,7 @@ export async function createTemplatesBulk(req, res) {
         category,
         type,
         previewUrl: file.location,
-        canvaUrl: canvaUrl || null,
+        canvaUrl: null,
       };
     });
 
