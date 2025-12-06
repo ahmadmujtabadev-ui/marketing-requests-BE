@@ -28,11 +28,11 @@ router.post(
   createTemplatesBulk
 );
 
-// router.put(
-//   "/:id",
-//   uploadTemplatePreview.single("previewUrl"),
-//   updateTemplate
-// );
+router.put(
+  "/:id",
+  templateUpload.single("previewUrl"),
+  updateTemplate
+);
 
 router.delete('/:id', deleteTemplate);
 

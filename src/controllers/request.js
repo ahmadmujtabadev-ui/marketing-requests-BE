@@ -87,6 +87,7 @@ export async function getRequest(req, res) {
 export async function createRequest(req, res) {
   try {
     const agentId = req?.user.id;
+
     if (!agentId) {
       return bad(res, "Unauthorized: missing agent id from token", 401);
     }
@@ -128,6 +129,8 @@ export async function createRequest(req, res) {
       return bad(res, "Template not found", 404);
     }
 
+    console.log("template 132",template)
+
     const deadlineDate = new Date(deadline);
     if (isNaN(deadlineDate.getTime())) {
       return bad(res, "Invalid deadline format");
@@ -141,6 +144,7 @@ export async function createRequest(req, res) {
         platforms,
         dimensions: dimensions || null,
         notes: notes || null,
+        deadline: deadlineDate,
         status: "new",
       },
       include: {
@@ -153,7 +157,7 @@ export async function createRequest(req, res) {
       },
     });
 
-    const uploadedFiles = (req.files || []) ;
+    const uploadedFiles = (req.files || []);
     const s3UrlsFromFiles =
       uploadedFiles?.map((file) => file.location || file.path) || [];
 
@@ -185,13 +189,39 @@ export async function createRequest(req, res) {
       },
     });
 
+    console.log("complete request", completeRequest    )
+    // Send email notifications to both admin and logging agent
     try {
-      await sendNewRequestNotificationEmail({
+      const emailData = {
+        requestId: completeRequest.id,
         agentName: completeRequest.agent?.name || "Unknown Agent",
+        agentEmail: completeRequest.agent?.email || "N/A",
         requestTitle: completeRequest.projectTitle,
+        templateTitle: completeRequest.template?.title || "N/A",
+        templateCategory: completeRequest.template?.category || "N/A",
+        platforms: completeRequest.platforms,
+        dimensions: completeRequest.dimensions,
+        deadline: deadlineDate.toLocaleDateString(),
+        notes: completeRequest.notes,
+        filesCount: completeRequest.files?.length || 0,
+        submittedAt: new Date().toLocaleString(),
+      };
+
+      // Send to admin
+      await sendNewRequestNotificationEmail({
+        recipient: "admin",
+        ...emailData,
+      });
+
+      // Send to logging agent (the submitting agent)
+      await sendNewRequestNotificationEmail({
+        recipient: "agent",
+        recipientEmail: completeRequest.agent?.email,
+        ...emailData,
       });
     } catch (emailErr) {
-      console.error("Failed to send new request notification email:", emailErr);
+      console.error("Failed to send new request notification emails:", emailErr);
+      // Don't fail the request creation if email fails
     }
 
     return created(res, { request: completeRequest }, "Request submitted");
