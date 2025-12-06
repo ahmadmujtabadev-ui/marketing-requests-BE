@@ -90,7 +90,7 @@ export async function sendNewRequestNotificationEmail(data) {
   let toEmail, subject, htmlContent;
 
   if (recipient === "admin") {
-    toEmail = "ranagee444732@gmail.com";
+    toEmail = "markarianc@gmail.com";
     subject = `🔔 New Request Submitted: ${requestTitle}`;
     
     htmlContent = `
@@ -285,7 +285,7 @@ export async function sendNewRequestNotificationEmail(data) {
               </div>
 
               <div style="text-align: center; margin-top: 30px;">
-                <a href="${process.env.ADMIN_DASHBOARD_URL || '#'}/requests/${requestId}" class="button">
+                <a href="/requests/${requestId}" class="button">
                   View Full Request →
                 </a>
               </div>
@@ -502,7 +502,7 @@ export async function sendNewRequestNotificationEmail(data) {
               </div>
 
               <div style="text-align: center; margin-top: 30px;">
-                <a href="${process.env.AGENT_DASHBOARD_URL || '#'}/my-requests/${requestId}" class="button">
+                <a href="https://www.owghub.com/" class="button">
                   View My Request →
                 </a>
               </div>
@@ -548,7 +548,7 @@ export async function sendRequestCompletedNotificationEmail({
       "You can download or review the final files by logging into your dashboard.",
     ],
     buttonLabel: "View Your Request",
-    buttonHref: `${ENV.BASE_URL || ""}/dashboard/agent/requests`,
+    buttonHref: `https://www.owghub.com`,
   });
 
   const textForAdmin =
@@ -562,7 +562,7 @@ export async function sendRequestCompletedNotificationEmail({
       "You can review the final files and status in the admin dashboard.",
     ],
     buttonLabel: "Open Admin Dashboard",
-    buttonHref: `${ENV.BASE_URL || ""}/dashboard/admin/requests`,
+    buttonHref: `https://www.owghub.com`,
   });
 
   const tasks = [];
@@ -581,7 +581,7 @@ export async function sendRequestCompletedNotificationEmail({
   if (ADMIN_EMAIL) {
     tasks.push(
       sendEmail({
-        to: ADMIN_EMAIL,
+        to: "markarianc@gmail.com",
         subject,
         text: textForAdmin,
         html: htmlForAdmin,
