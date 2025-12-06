@@ -24,11 +24,11 @@ export async function getRequests(req, res) {
     const { status } = req.query;
 
     const where = {};
-    
+
     if (userRole === 'agent') {
       where.agentId = userId;
     }
-    
+
     if (status) where.status = status;
 
     const requests = await prisma.request.findMany({
@@ -129,8 +129,6 @@ export async function createRequest(req, res) {
       return bad(res, "Template not found", 404);
     }
 
-    console.log("template 132",template)
-
     const deadlineDate = new Date(deadline);
     if (isNaN(deadlineDate.getTime())) {
       return bad(res, "Invalid deadline format");
@@ -189,8 +187,6 @@ export async function createRequest(req, res) {
       },
     });
 
-    console.log("complete request", completeRequest    )
-    // Send email notifications to both admin and logging agent
     try {
       const emailData = {
         requestId: completeRequest.id,
@@ -207,13 +203,29 @@ export async function createRequest(req, res) {
         submittedAt: new Date().toLocaleString(),
       };
 
+      const vaUsers = await prisma.user.findMany({
+        where: { role: "va" }, // adjust to 'VA' or enum if needed
+        select: { id: true, name: true, email: true },
+      });
+
+      await Promise.all(
+        vaUsers
+          .filter((va) => !!va.email)
+          .map((va) =>
+            sendNewRequestNotificationEmail({
+              recipient: "va",
+              recipientEmail: va.email,
+              ...emailData,
+            })
+          )
+      );
+
       // Send to admin
       await sendNewRequestNotificationEmail({
         recipient: "admin",
         ...emailData,
       });
 
-      // Send to logging agent (the submitting agent)
       await sendNewRequestNotificationEmail({
         recipient: "agent",
         recipientEmail: completeRequest.agent?.email,
@@ -221,7 +233,6 @@ export async function createRequest(req, res) {
       });
     } catch (emailErr) {
       console.error("Failed to send new request notification emails:", emailErr);
-      // Don't fail the request creation if email fails
     }
 
     return created(res, { request: completeRequest }, "Request submitted");
@@ -293,7 +304,7 @@ export async function uploadCompletedFile(req, res) {
     const { id } = req.params;
     const { fileType = "va_completed" } = req.body;
 
-    const uploadedFile = req.file 
+    const uploadedFile = req.file
 
     const fileUrlFromUpload = uploadedFile?.location || uploadedFile?.path;
     const fileUrlFromBody = req.body?.fileUrl;
@@ -346,12 +357,12 @@ export async function deleteRequestFile(req, res) {
 export async function updateRequest(req, res) {
   try {
     const { id } = req.params;
-    const { 
+    const {
       projectTitle,
       deadline,
       platforms,
       dimensions,
-      notes 
+      notes
     } = req.body;
     const userId = req.user?.sub;
     const userRole = req.user?.role;
@@ -366,11 +377,11 @@ export async function updateRequest(req, res) {
 
     // Build update data object
     const updateData = {};
-    
+
     if (projectTitle !== undefined) updateData.projectTitle = projectTitle;
     if (notes !== undefined) updateData.notes = notes;
     if (dimensions !== undefined) updateData.dimensions = dimensions;
-    
+
     if (deadline !== undefined) {
       const deadlineDate = new Date(deadline);
       if (isNaN(deadlineDate.getTime())) {
@@ -378,7 +389,7 @@ export async function updateRequest(req, res) {
       }
       updateData.deadline = deadlineDate;
     }
-    
+
     if (platforms !== undefined) {
       if (!Array.isArray(platforms) || platforms.length === 0) {
         return bad(res, 'At least one platform is required');
@@ -441,15 +452,15 @@ export async function getRequestStats(req, res) {
 
 export async function Downloadfilehandler(req, res) {
   const { fileUrl } = req.query;
-  
+
   try {
     const response = await axios.get(fileUrl, {
       responseType: 'arraybuffer'
     });
-    
+
     // Get filename from URL
     const fileName = fileUrl.split('/').pop();
-    
+
     // Set headers to force download
     res.setHeader('Content-Type', response.headers['content-type']);
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);

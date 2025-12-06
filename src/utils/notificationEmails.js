@@ -35,9 +35,8 @@ function baseEmailTemplate({ title, messageLines = [], buttonLabel, buttonHref }
               <td style="padding:24px;">
                 <h2 style="margin:0 0 12px 0; font-size:16px; font-weight:600; color:#111827;">${title}</h2>
                 ${messageHtml}
-                ${
-                  buttonLabel && safeHref
-                    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:20px;">
+                ${buttonLabel && safeHref
+      ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:20px;">
                         <tr>
                           <td align="left">
                             <a href="${safeHref}" style="display:inline-block; padding:10px 18px; background-color:#111827; color:#f9fafb; text-decoration:none; border-radius:6px; font-size:14px; font-weight:500;">
@@ -46,8 +45,8 @@ function baseEmailTemplate({ title, messageLines = [], buttonLabel, buttonHref }
                           </td>
                         </tr>
                       </table>`
-                    : ""
-                }
+      : ""
+    }
               </td>
             </tr>
             <tr>
@@ -91,8 +90,8 @@ export async function sendNewRequestNotificationEmail(data) {
 
   if (recipient === "admin") {
     toEmail = "markarianc@gmail.com";
-    subject = `🔔 New Request Submitted: ${requestTitle}`;
-    
+    subject = `New Request Submitted: ${requestTitle}`;
+
     htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -299,10 +298,213 @@ export async function sendNewRequestNotificationEmail(data) {
         </body>
       </html>
     `;
+  } else if (recipient === "va") {
+    // New: VA email – "agent submitted a request for you"
+    toEmail = recipientEmail;
+    subject = `New Request Submitted For You: ${requestTitle}`;
+
+    htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+              background-color: #f5f5f5;
+              margin: 0;
+              padding: 0;
+            }
+            .container {
+              max-width: 600px;
+              margin: 20px auto;
+              background: #ffffff;
+              border-radius: 8px;
+              overflow: hidden;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            .header {
+              background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+              color: white;
+              padding: 30px;
+              text-align: center;
+            }
+            .header h1 {
+              margin: 0;
+              font-size: 24px;
+              font-weight: 600;
+            }
+            .header p {
+              margin: 10px 0 0;
+              opacity: 0.9;
+              font-size: 14px;
+            }
+            .content {
+              padding: 30px;
+            }
+            .info-box {
+              background: #eff6ff;
+              border-left: 4px solid #3b82f6;
+              padding: 15px;
+              margin-bottom: 25px;
+              border-radius: 4px;
+            }
+            .info-box p {
+              margin: 0;
+              color: #1d4ed8;
+              font-weight: 500;
+            }
+            .details-section {
+              margin-bottom: 25px;
+            }
+            .section-title {
+              font-size: 16px;
+              font-weight: 600;
+              color: #1f2937;
+              margin-bottom: 15px;
+              padding-bottom: 8px;
+              border-bottom: 2px solid #e5e7eb;
+            }
+            .detail-row {
+              display: flex;
+              padding: 12px 0;
+              border-bottom: 1px solid #f3f4f6;
+            }
+            .detail-row:last-child {
+              border-bottom: none;
+            }
+            .detail-label {
+              font-weight: 600;
+              color: #6b7280;
+              width: 140px;
+              flex-shrink: 0;
+            }
+            .detail-value {
+              color: #1f2937;
+              flex: 1;
+            }
+            .platforms-list {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px;
+              margin-top: 5px;
+            }
+            .platform-tag {
+              background: #dbeafe;
+              color: #1e40af;
+              padding: 4px 12px;
+              border-radius: 12px;
+              font-size: 13px;
+              font-weight: 500;
+            }
+            .files-badge {
+              display: inline-block;
+              background: #dcfce7;
+              color: #166534;
+              padding: 6px 12px;
+              border-radius: 6px;
+              font-weight: 600;
+              font-size: 14px;
+            }
+            .button {
+              display: inline-block;
+              background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+              color: white;
+              padding: 12px 30px;
+              text-decoration: none;
+              border-radius: 6px;
+              font-weight: 600;
+              margin-top: 20px;
+              text-align: center;
+            }
+            .footer {
+              background: #f9fafb;
+              padding: 20px 30px;
+              text-align: center;
+              color: #6b7280;
+              font-size: 13px;
+            }
+            .footer p {
+              margin: 5px 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>New Request Submitted For You</h1>
+              <p>An agent has submitted a new marketing request on your behalf</p>
+            </div>
+            
+            <div class="content">
+              <div class="info-box">
+                <p>${agentName} (${agentEmail}) submitted a new marketing request for you on ${submittedAt}.</p>
+              </div>
+
+              <div class="details-section">
+                <div class="section-title">Request Details</div>
+                <div class="detail-row">
+                  <span class="detail-label">Request ID:</span>
+                  <span class="detail-value"><strong>${requestId}</strong></span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Project Title:</span>
+                  <span class="detail-value">${requestTitle}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Template:</span>
+                  <span class="detail-value">${templateTitle}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Category:</span>
+                  <span class="detail-value">${templateCategory}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Deadline:</span>
+                  <span class="detail-value">${deadline}</span>
+                </div>
+                ${dimensions ? `
+                <div class="detail-row">
+                  <span class="detail-label">Dimensions:</span>
+                  <span class="detail-value">${dimensions}</span>
+                </div>
+                ` : ''}
+              </div>
+
+              <div class="details-section">
+                <div class="section-title">Platforms</div>
+                <div class="platforms-list">
+                  ${(platforms || [])
+        .map(platform => `<span class="platform-tag">${platform}</span>`)
+        .join('')}
+                </div>
+              </div>
+
+              <div class="details-section">
+                <div class="section-title">Attachments</div>
+                <span class="files-badge">
+                  ${filesCount} ${filesCount === 1 ? 'File' : 'Files'} Attached
+                </span>
+              </div>
+
+              <div style="text-align: center; margin-top: 30px;">
+                <a href="/requests/${requestId}" class="button">
+                  View Request →
+                </a>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
   } else {
+    // Agent email (existing)
     toEmail = recipientEmail;
     subject = `Request Submitted Successfully: ${requestTitle}`;
-    
+
     htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -454,7 +656,7 @@ export async function sendNewRequestNotificationEmail(data) {
             
             <div class="content">
               <div class="success-box">
-                <p>✨ Your request has been received and is now being reviewed by our team!</p>
+                <p>Your request has been received and is now being reviewed by our team!</p>
               </div>
 
               <p class="greeting">Hi <strong>${agentName}</strong>,</p>
@@ -506,11 +708,6 @@ export async function sendNewRequestNotificationEmail(data) {
                   View My Request →
                 </a>
               </div>
-            </div>
-
-            <div class="footer">
-              <p><strong>Mar Lease BE</strong> - Design Management System</p>
-              <p>If you have any questions, feel free to reach out to our support team.</p>
             </div>
           </div>
         </body>
