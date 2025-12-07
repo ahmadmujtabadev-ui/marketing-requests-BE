@@ -32,47 +32,63 @@ enum RequestStatus {
   completed
 }
 
-  model User {
-    id                      String    @id @default(uuid())
-    name                    String
-    email                   String    @unique
-    passwordHash            String
-    role                    Role      @default(agent)
-    isActive                Boolean   @default(true)
-    twoFactorEnabled        Boolean   @default(false)
-    passwordResetTokenHash  String?
-    passwordResetExpires    DateTime?
-    lastLoginAt             DateTime?
-    
-    // New profile fields
-    position                String?
-    phoneNumber             String?
-    website                 String?
-    about                   String?   @db.Text
-    profileImage            String?
-    socialLinks             Json?
-    
-    createdAt               DateTime  @default(now())
-    updatedAt               DateTime  @updatedAt
+model User {
+  id                      String    @id @default(uuid())
+  name                    String
+  email                   String    @unique
+  passwordHash            String
+  role                    Role      @default(agent)
+  isActive                Boolean   @default(true)
+  twoFactorEnabled        Boolean   @default(false)
+  passwordResetTokenHash  String?
+  passwordResetExpires    DateTime?
+  lastLoginAt             DateTime?
+  
+  // New profile fields
+  position                String?
+  phoneNumber             String?
+  website                 String?
+  about                   String?   @db.Text
+  profileImage            String?
+  socialLinks             Json?
+  
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
-    // Relations
-    requests                Request[]
+  // Relations
+  requests                Request[]
 
-    @@map("users")
-  }
+  @@map("users")
+}
+
+model Category {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  description String?
+  isActive    Boolean     @default(true)
+  order       Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  templates   Template[]
+
+  @@map("categories")
+}
 
 model Template {
   id          String        @id @default(uuid())
   title       String
-  category    String
+  category    String?       // Keep old column temporarily
+  categoryId  String?       // Make new column optional
   type        TemplateType
   previewUrl  String?
   canvaUrl    String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  // Relations
-  requests    Request[]
+  categoryRelation Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  requests         Request[]
 
   @@map("templates")
 }
@@ -97,7 +113,6 @@ model Request {
   @@map("requests")
 }
 
-
 model RequestFile {
   id          String    @id @default(uuid())
   requestId   String
@@ -109,4 +124,4 @@ model RequestFile {
   request     Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@map("request_files")
-  }
+}
