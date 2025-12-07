@@ -154,16 +154,46 @@ export async function createTemplatesBulk(req, res) {
 export async function updateTemplate(req, res) {
   try {
     const { id } = req.params;
-    const { title, category, type, canvaUrl, previewUrl } = req.body;
+
+    // from multipart/form-data, everything is a string
+    const {
+      title,
+      type,
+      canvaUrl,
+      previewUrl,
+      categoryId,        // NEW: preferred way to change category
+      category: categoryNameBody, // optional fallback
+    } = req.body;
 
     const exists = await prisma.template.findUnique({ where: { id } });
     if (!exists) return bad(res, "Template not found", 404);
 
     const data = {};
 
-    if (title !== undefined) data.title = title;
-    if (category !== undefined) data.category = category;
+    // Title
+    if (title !== undefined) {
+      data.title = title;
+    }
 
+    // Category: prefer categoryId from body
+    if (categoryId !== undefined && categoryId !== "") {
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+        select: { id: true, name: true },
+      });
+
+      if (!category) {
+        return bad(res, "Invalid category");
+      }
+
+      data.categoryId = category.id;   // FK
+      data.category = category.name;   // denormalized name for display
+    } else if (categoryNameBody !== undefined) {
+      // Backwards-compat: if someone sends just category name
+      data.category = categoryNameBody;
+    }
+
+    // Type
     if (type !== undefined) {
       if (!["residential", "commercial"].includes(type)) {
         return bad(res, "Type must be residential or commercial");
@@ -171,8 +201,12 @@ export async function updateTemplate(req, res) {
       data.type = type;
     }
 
-    if (canvaUrl !== undefined) data.canvaUrl = canvaUrl;
+    // Canva URL
+    if (canvaUrl !== undefined) {
+      data.canvaUrl = canvaUrl;
+    }
 
+    // Preview image
     if (req.file) {
       // overwrite previewUrl with the new S3 file URL
       data.previewUrl = req.file.location;
@@ -192,6 +226,7 @@ export async function updateTemplate(req, res) {
     return bad(res, "Failed to update template", 500);
   }
 }
+
 
 export async function deleteTemplate(req, res) {
   try {
