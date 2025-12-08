@@ -31,7 +31,7 @@ function bad(res, msg = 'Bad request', code = 400) {
 
 export async function listUsers(req, res) {
   try {
-    const { role, isActive, search, page = 1, limit = 10 } = req.query;
+    const { role, isActive, search, page = 1, limit = 100 } = req.query;
     
     const where = {};
     if (role) where.role = role;
