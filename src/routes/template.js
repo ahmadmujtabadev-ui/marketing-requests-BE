@@ -47,6 +47,6 @@ router.get('/:id', getCategoryById);
 // Admin-only routes
 router.post('/categories', authRequired, createCategory);
 router.put('/:id', authRequired, updateCategory);
-router.delete('/:id',authRequired, deleteCategory);
+router.delete('/categories/:id',authRequired, deleteCategory);
 
 export default router;
