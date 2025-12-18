@@ -64,7 +64,7 @@ export const templateUpload = multer({
   },
 });
 
-// Error handler middleware for multer errors
+
 export const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
