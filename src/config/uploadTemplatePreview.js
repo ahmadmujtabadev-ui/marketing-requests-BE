@@ -60,7 +60,6 @@ export const templateUpload = multer({
   },
 });
 
-console.log("✅ templateUpload ACTIVE limit bytes:", FILE_LIMIT);
 
 export const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
