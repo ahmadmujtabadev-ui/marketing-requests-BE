@@ -62,16 +62,18 @@ model User {
 }
 
 model Category {
-  id          String      @id @default(uuid())
-  name        String      @unique
-  description String?
-  isActive    Boolean     @default(true)
-  order       Int         @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id             String   @id @default(uuid())
+  name           String   @unique
+  description    String?
+  isActive       Boolean  @default(true)
+  order          Int      @default(0)
 
-  // Relations
-  templates   Template[]
+  canvaFolderUrl String?  @db.Text  // NEW
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  templates      Template[]
 
   @@map("categories")
 }

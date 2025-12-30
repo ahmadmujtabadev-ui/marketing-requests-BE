@@ -491,7 +491,7 @@ export async function sendNewRequestNotificationEmail(data) {
               </div>
 
               <div style="text-align: center; margin-top: 30px;">
-                <a href="/requests/${requestId}" class="button">
+                <a href="https://www.owghub.com/" class="button">
                   View Request →
                 </a>
               </div>

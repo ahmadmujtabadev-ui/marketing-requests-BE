@@ -1,4 +1,3 @@
-// src/middleware/requestUpload.js
 import multer from "multer";
 import multerS3 from "multer-s3";
 import path from "path";
@@ -13,30 +12,27 @@ const s3 = new S3Client({
   },
 });
 
-// Allow ANY file type (images, videos, pdf, docs, etc.)
 const requestFileFilter = (req, file, cb) => {
-  // Optional: Add specific restrictions if needed
   const allowedMimes = [
-    'image/jpeg',
-    'image/jpg', 
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'video/mp4',
-    'video/quicktime',
-    'video/x-msvideo',
-    'video/x-matroska',
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "video/mp4",
+    "video/quicktime",
+    "video/x-msvideo",
+    "video/x-matroska",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ];
 
-  if (allowedMimes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error(`File type ${file.mimetype} is not supported`), false);
-  }
+  if (allowedMimes.includes(file.mimetype)) cb(null, true);
+  else cb(new Error(`File type ${file.mimetype} is not supported`), false);
 };
+
+const FILE_LIMIT = 60 * 1024 * 1024; // ✅ 60MB
 
 export const templateUpload = multer({
   storage: multerS3({
@@ -46,54 +42,55 @@ export const templateUpload = multer({
     key(req, file, cb) {
       const ext = path.extname(file.originalname);
       const base = path.basename(file.originalname, ext);
-      const sanitizedBase = base.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const sanitizedBase = base.replace(/[^a-zA-Z0-9-_]/g, "_");
       const fileName = `${sanitizedBase}-${Date.now()}${ext}`;
       cb(null, `requests/${fileName}`);
     },
     metadata(req, file, cb) {
       cb(null, {
         originalName: file.originalname,
-        uploadedAt: new Date().toISOString()
+        uploadedAt: new Date().toISOString(),
       });
-    }
+    },
   }),
   fileFilter: requestFileFilter,
   limits: {
-    fileSize: 25 * 1024 * 1024, // 20 MB per file
-    files: 10, // Maximum 10 files per request
+    fileSize: FILE_LIMIT,
+    files: 10,
   },
 });
 
+console.log("✅ templateUpload ACTIVE limit bytes:", FILE_LIMIT);
 
 export const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
-    if (err.code === 'LIMIT_FILE_SIZE') {
+    if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({
         success: false,
-        message: 'File size exceeds 25MB limit',
-        error: err.message
+        message: "File size exceeds 60MB limit",
+        error: err.message,
       });
     }
-    if (err.code === 'LIMIT_FILE_COUNT') {
+    if (err.code === "LIMIT_FILE_COUNT") {
       return res.status(400).json({
         success: false,
-        message: 'Maximum 10 files allowed',
-        error: err.message
+        message: "Maximum 10 files allowed",
+        error: err.message,
       });
     }
     return res.status(400).json({
       success: false,
-      message: 'File upload error',
-      error: err.message
+      message: "File upload error",
+      error: err.message,
     });
   }
-  
+
   if (err) {
     return res.status(400).json({
       success: false,
-      message: err.message || 'Unknown upload error'
+      message: err.message || "Unknown upload error",
     });
   }
-  
+
   next();
 };

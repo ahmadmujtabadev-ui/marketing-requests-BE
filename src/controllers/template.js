@@ -273,144 +273,111 @@ export async function getCategories(req, res) {
   }
 }
 
-
-// Get all categories
-// export const getAllCategories = async (req, res) => {
-//   try {
-//         console.log("categories")
-
-//     const where = {};
-
-//     const categories = await prisma.category.findMany({
-//       where,
-//       orderBy: [
-//         { order: 'asc' },
-//         { name: 'asc' }
-//       ],
-//       include: {
-//         _count: {
-//           select: { templates: true }
-//         }
-//       }
-//     });
-
-//     res.status(200).json({
-//       success: true,
-//       data: categories
-//     });
-//   } catch (error) {
-//     console.error('Error fetching categories:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch categories',
-//       error: error.message
-//     });
-//   }
-// };
-
 export const getAllCategories = async (req, res) => {
   try {
-
-
-    // 1. Get categories from Category table
-    const categoryWhere = {};
-
-
     const dbCategories = await prisma.category.findMany({
-      where: categoryWhere,
-      orderBy: [
-        { order: 'asc' },
-        { name: 'asc' }
-      ],
-      include: {
-        _count: {
-          select: { templates: true }
-        }
-      }
-    });
-
-    // 2. Get unique categories from templates (legacy data)
-
-    const templates = await prisma.template.findMany({
-      where: {
-        category: { not: null } // Only get templates with old category field
-      },
+      orderBy: [{ order: "asc" }, { name: "asc" }],
       select: {
-        category: true,
-        type: true
+        id: true,
+        name: true,
+        description: true,
+        isActive: true,
+        order: true,
+        createdAt: true,
+        updatedAt: true,
+        canvaFolderUrl: true,
+        _count: { select: { templates: true } },
+        templates: { select: { id: true, canvaUrl: true } },
       },
-      distinct: ['category']
     });
 
-    // 3. Extract unique template categories
-    const templateCategories = templates
-      .map(t => t.category)
+    const dbCategoriesWithUrls = dbCategories.map((c) => {
+      const templateCanvaUrls = (c.templates || [])
+        .map((t) => t.canvaUrl)
+        .filter(Boolean);
+
+      return {
+        ...c,
+        isLegacy: false,
+        templateCanvaUrls,
+        sampleCanvaUrl: templateCanvaUrls[0] || null,
+        templates: undefined,
+      };
+    });
+
+    const templatesDistinctCategories = await prisma.template.findMany({
+      where: { category: { not: null } },
+      select: { category: true },
+      distinct: ["category"],
+    });
+
+    const templateCategories = templatesDistinctCategories
+      .map((t) => t.category)
       .filter(Boolean);
 
-    // 4. Find template categories that don't exist in Category table
-    const dbCategoryNames = new Set(dbCategories.map(c => c.name));
+    const dbCategoryNames = new Set(dbCategoriesWithUrls.map((c) => c.name));
     const uniqueTemplateCategories = templateCategories.filter(
-      cat => !dbCategoryNames.has(cat)
+      (cat) => !dbCategoryNames.has(cat)
     );
 
-    // 5. Get count for each unique template category
     const legacyCategories = await Promise.all(
       uniqueTemplateCategories.map(async (categoryName) => {
-        const count = await prisma.template.count({
-          where: {
-            category: categoryName,
-            // ...(type ? { type } : {})
-          }
-        });
+        const [count, allUrls] = await Promise.all([
+          prisma.template.count({ where: { category: categoryName } }),
+          prisma.template.findMany({
+            where: { category: categoryName, canvaUrl: { not: null } },
+            select: { canvaUrl: true },
+          }),
+        ]);
+
+        const templateCanvaUrls = allUrls.map((x) => x.canvaUrl).filter(Boolean);
 
         return {
-          id: `legacy-${categoryName.replace(/\s+/g, '-').toLowerCase()}`,
+          id: `legacy-${categoryName.replace(/\s+/g, "-").toLowerCase()}`,
           name: categoryName,
-          description: 'Legacy category from templates',
+          description: "Legacy category from templates",
           isActive: true,
-          order: 1000, // Put legacy categories at the end
+          order: 1000,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          _count: {
-            templates: count
-          },
-          isLegacy: true // Flag to identify legacy categories
+          _count: { templates: count },
+          isLegacy: true,
+
+          canvaFolderUrl: null,
+
+          templateCanvaUrls,
+          sampleCanvaUrl: templateCanvaUrls[0] || null,
         };
       })
     );
 
-    // 6. Merge and sort all categories
-    const allCategories = [
-      ...dbCategories.map(c => ({ ...c, isLegacy: false })),
-      ...legacyCategories
-    ].sort((a, b) => {
-      // Sort by order first, then by name
-      if (a.order !== b.order) return a.order - b.order;
-      return a.name.localeCompare(b.name);
-    });
+    const allCategories = [...dbCategoriesWithUrls, ...legacyCategories].sort(
+      (a, b) => {
+        if (a.order !== b.order) return a.order - b.order;
+        return a.name.localeCompare(b.name);
+      }
+    );
 
-    console.log(`✅ Categories found: ${dbCategories.length} from DB + ${legacyCategories.length} legacy`);
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: allCategories,
       meta: {
         total: allCategories.length,
-        fromDatabase: dbCategories.length,
-        legacy: legacyCategories.length
-      }
+        fromDatabase: dbCategoriesWithUrls.length,
+        legacy: legacyCategories.length,
+      },
     });
   } catch (error) {
-    console.error('❌ Error fetching categories:', error);
-    res.status(500).json({
+    console.error("Error fetching categories:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch categories',
-      error: error.message
+      message: "Failed to fetch categories",
+      error: error.message,
     });
   }
 };
 
-// Get category by ID
+
 export const getCategoryById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -453,28 +420,32 @@ export const getCategoryById = async (req, res) => {
   }
 };
 
-// Create new category
 export const createCategory = async (req, res) => {
   try {
-    const { name, description, isActive, order } = req.body;
+    const { name, description, isActive, order, canvaFolderUrl } = req.body;
 
-    // Validation
-    if (!name || name.trim() === '') {
+    if (!name || name.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: 'Category name is required'
+        message: "Category name is required",
       });
     }
 
-    // Check if category already exists
     const existingCategory = await prisma.category.findUnique({
-      where: { name: name.trim() }
+      where: { name: name.trim() },
     });
 
     if (existingCategory) {
       return res.status(409).json({
         success: false,
-        message: 'Category with this name already exists'
+        message: "Category with this name already exists",
+      });
+    }
+
+    if (canvaFolderUrl && !String(canvaFolderUrl).includes("canva.com")) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Canva URL",
       });
     }
 
@@ -483,55 +454,60 @@ export const createCategory = async (req, res) => {
         name: name.trim(),
         description: description?.trim() || null,
         isActive: isActive !== undefined ? isActive : true,
-        order: order || 0
-      }
+        order: order || 0,
+        canvaFolderUrl: canvaFolderUrl?.trim() || null, // ✅ NEW
+      },
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: 'Category created successfully',
-      data: category
+      message: "Category created successfully",
+      data: category,
     });
   } catch (error) {
-    console.error('Error creating category:', error);
-    res.status(500).json({
+    console.error("Error creating category:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to create category',
-      error: error.message
+      message: "Failed to create category",
+      error: error.message,
     });
   }
 };
 
-// Update category
 export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, isActive, order } = req.body;
+    const { name, description, isActive, order, canvaFolderUrl } = req.body;
 
-    // Check if category exists
     const existingCategory = await prisma.category.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!existingCategory) {
       return res.status(404).json({
         success: false,
-        message: 'Category not found'
+        message: "Category not found",
       });
     }
 
-    // If name is being updated, check for duplicates
     if (name && name.trim() !== existingCategory.name) {
       const duplicate = await prisma.category.findUnique({
-        where: { name: name.trim() }
+        where: { name: name.trim() },
       });
 
       if (duplicate) {
         return res.status(409).json({
           success: false,
-          message: 'Category with this name already exists'
+          message: "Category with this name already exists",
         });
       }
+    }
+
+    if (canvaFolderUrl && !String(canvaFolderUrl).includes("canva.com")) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Canva URL",
+      });
     }
 
     const updateData = {};
@@ -540,32 +516,35 @@ export const updateCategory = async (req, res) => {
     if (isActive !== undefined) updateData.isActive = isActive;
     if (order !== undefined) updateData.order = order;
 
+    if (canvaFolderUrl !== undefined) {
+      updateData.canvaFolderUrl = canvaFolderUrl?.trim() || null;
+    }
+
     const category = await prisma.category.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: 'Category updated successfully',
-      data: category
+      message: "Category updated successfully",
+      data: category,
     });
   } catch (error) {
-    console.error('Error updating category:', error);
-    res.status(500).json({
+    console.error("Error updating category:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Failed to update category',
-      error: error.message
+      message: "Failed to update category",
+      error: error.message,
     });
   }
 };
 
-// Delete category
+
 export const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if category exists
     const category = await prisma.category.findUnique({
       where: { id },
       include: {
@@ -582,7 +561,6 @@ export const deleteCategory = async (req, res) => {
       });
     }
 
-    // Check if category has templates
     if (category._count.templates > 0) {
       return res.status(400).json({
         success: false,

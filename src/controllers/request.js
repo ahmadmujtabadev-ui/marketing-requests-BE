@@ -65,7 +65,9 @@ export async function getRequest(req, res) {
           select: { id: true, name: true, email: true }
         },
         template: {
-          select: { id: true, title: true, category: true, type: true, canvaUrl: true, previewUrl: true }
+          include: {
+            categoryRelation: { select: { name: true, canvaFolderUrl: true } }
+          }
         },
         files: true
       }
