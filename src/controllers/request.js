@@ -72,6 +72,7 @@ export async function getRequest(req, res) {
         files: true
       }
     });
+    console.log("request", request)
 
     if (!request) return bad(res, 'Request not found', 404);
 
@@ -247,57 +248,75 @@ export async function createRequest(req, res) {
 export async function updateRequestStatus(req, res) {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, canvaTemplateUrl } = req.body;
 
-    const validStatuses = ['new', 'progress', 'revision', 'completed'];
-    if (!status || !validStatuses.includes(status)) {
-      return bad(res, `Status must be one of: ${validStatuses.join(', ')}`);
+    const userId = req.user?.sub;
+    const userRole = req.user?.role;
+
+    // At least one field must be provided
+    if (status === undefined && canvaTemplateUrl === undefined) {
+      return bad(res, "Nothing to update", 400);
+    }
+
+    const validStatuses = ["new", "progress", "revision", "completed"];
+    if (status !== undefined && (!status || !validStatuses.includes(status))) {
+      return bad(res, `Status must be one of: ${validStatuses.join(", ")}`, 400);
     }
 
     const exists = await prisma.request.findUnique({
       where: { id },
       include: {
-        agent: {
-          select: { id: true, name: true, email: true },
-        },
+        agent: { select: { id: true, name: true, email: true } },
       },
     });
 
-    if (!exists) return bad(res, 'Request not found', 404);
+    if (!exists) return bad(res, "Request not found", 404);
+
+    // Agents can only update their own requests (same security rule you had)
+    if (userRole === "agent" && exists.agentId !== userId) {
+      return bad(res, "Unauthorized", 403);
+    }
+
+    // Build update object
+    const data = {};
+
+    if (status !== undefined) {
+      data.status = status;
+    }
+
+    // Allow VA/Admin to save Canva template URL from same endpoint
+    // - empty string should become null
+    if (canvaTemplateUrl !== undefined) {
+      data.canvaTemplateUrl = (canvaTemplateUrl || "").trim() ? canvaTemplateUrl.trim() : null;
+    }
 
     const request = await prisma.request.update({
       where: { id },
-      data: { status },
+      data,
       include: {
-        agent: {
-          select: { id: true, name: true, email: true },
-        },
-        template: {
-          select: { id: true, title: true, category: true, type: true },
-        },
+        agent: { select: { id: true, name: true, email: true } },
+        template: { select: { id: true, title: true, category: true, type: true } },
         files: true,
       },
     });
 
-    if (status === 'completed') {
+    // Send email only when status is explicitly set to completed
+    if (status === "completed") {
       try {
         await sendRequestCompletedNotificationEmail({
-          agentEmail: request.agent?.email || '',
-          agentName: request.agent?.name || 'Agent',
+          agentEmail: request.agent?.email || "",
+          agentName: request.agent?.name || "Agent",
           requestTitle: request.projectTitle,
         });
       } catch (emailErr) {
-        console.error(
-          'Failed to send request completion notification email:',
-          emailErr
-        );
+        console.error("Failed to send request completion notification email:", emailErr);
       }
     }
 
-    return ok(res, { request }, 'Request status updated');
+    return ok(res, { request }, "Request updated");
   } catch (error) {
-    console.error('Update request status error:', error);
-    return bad(res, 'Failed to update request status', 500);
+    console.error("Update request status error:", error);
+    return bad(res, "Failed to update request status", 500);
   }
 }
 
@@ -364,7 +383,8 @@ export async function updateRequest(req, res) {
       deadline,
       platforms,
       dimensions,
-      notes
+      notes,
+      canvaTemplateUrl  // NEW: Accept Canva template URL
     } = req.body;
     const userId = req.user?.sub;
     const userRole = req.user?.role;
@@ -383,6 +403,11 @@ export async function updateRequest(req, res) {
     if (projectTitle !== undefined) updateData.projectTitle = projectTitle;
     if (notes !== undefined) updateData.notes = notes;
     if (dimensions !== undefined) updateData.dimensions = dimensions;
+    
+    // NEW: Allow VAs to set the Canva template URL
+    if (canvaTemplateUrl !== undefined) {
+      updateData.canvaTemplateUrl = canvaTemplateUrl || null;
+    }
 
     if (deadline !== undefined) {
       const deadlineDate = new Date(deadline);
